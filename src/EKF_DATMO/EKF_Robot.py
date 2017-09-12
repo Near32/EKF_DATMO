@@ -37,7 +37,7 @@ class EKF_Robot(EKF_Element) :
 		]) 
 
 		#Sensor/Measurement noise
-		measurement_noise_std = 1e-1
+		measurement_noise_std = 1e0
 		self.R = measurement_noise_std * measurement_noise_std * np.identity(3)
 		
 		

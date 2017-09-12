@@ -72,7 +72,7 @@ class EKF_Element :
 		return x
 
 	def correctCovariance(self, sigma_p, k, H):
-		sigma = np.dot((np.identity(4)-np.dot(k, H)), sigma_p)
+		sigma = np.dot((np.identity(self.x.shape[0])-np.dot(k, H)), sigma_p)
 		return sigma
 
 	def state_callback(self):

@@ -5,7 +5,7 @@ import cv2
 
 
 def drawFrameLocal(datmo) :
-	windowSize = 500
+	windowSize = 800
 	zoomArea = 100.0
 	scale = windowSize*1.1/(2.0*zoomArea)
 	frame = 125.0*np.ones( (windowSize,windowSize,3))
@@ -18,12 +18,14 @@ def drawFrameLocal(datmo) :
 		text = 'MO{}'.format( i )
 		cv2.putText(frame,text=text, org=center, fontFace=cv2.FONT_HERSHEY_SIMPLEX, fontScale=1, color=(0,0,255), thickness=2)	
 	
-	cv2.circle(frame, center=(250,250), radius=100, color=color, thickness=2)
+	cv2.circle(frame, center=(windowSize/2,windowSize/2), radius=100, color=color, thickness=2)
+	text = '{}'.format(datmo.robot.getState().transpose() )
+	cv2.putText(frame,text=text, org=(0,50), fontFace=cv2.FONT_HERSHEY_SIMPLEX, fontScale=1, color=(0,0,255), thickness=2)	
 	cv2.imshow('mapLocal',frame)
 	
 def drawFrameGlobal(datmo) :
-	windowSize = 500
-	zoomArea = 20.0
+	windowSize = 800
+	zoomArea = 50.0
 	scale = windowSize*1.1/(2.0*zoomArea)
 	frame = 125.0*np.ones( (windowSize,windowSize,3))
 	elements = datmo.mapMO
@@ -36,15 +38,13 @@ def drawFrameGlobal(datmo) :
 		cv2.circle(frame, center=center, radius=radius, color=color, thickness=5, lineType=8, shift=0)
 		text = 'MO{}'.format( i )
 		cv2.putText(frame,text=text, org=center, fontFace=cv2.FONT_HERSHEY_SIMPLEX, fontScale=1, color=(0,0,255), thickness=2)	
-	cv2.circle(frame, center=(250,250), radius=100, color=color, thickness=2)
+	cv2.circle(frame, center=(windowSize/2,windowSize/2), radius=100, color=color, thickness=2)
 	
 	cv2.imshow('mapGlobal',frame)
 	
 def test_ekf() :
 	freq = 100
 	dist = 5.0
-	cv2.namedWindow('map')
-	cv2.namedWindow('mapGlobal')
 	continuer = True
 	
 	datmo = EKF_DATMO(freq=freq, assoc_dist=dist)
@@ -64,6 +64,13 @@ def test_ekf() :
 			print('OBS : {}'.format(obs) )
 			measurements = [ ('landmark', obs) ]
 			datmo.observationMapPosition( measurements )
+			
+		if key == ord('y') :
+			dottheta = (np.random.random()*np.pi*2-np.pi)/10.0
+			obs = np.array( [ 0.0, 0.0, dottheta] ).reshape((3,1))
+			print('OBS : ROBOT :: {}'.format(obs) )
+			measurements = obs
+			datmo.observationRobotVelocity( measurements )
 			
 		time.sleep(0.1)
 			

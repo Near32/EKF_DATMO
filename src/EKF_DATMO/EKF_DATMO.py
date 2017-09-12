@@ -71,7 +71,7 @@ class EKF_DATMO :
 	def fromGlobalToLocal(self, vectors ) :
 		robotstate = np.copy( self.robot.getState() )
 		origin = robotstate[0:2,:]
-		origin_yaw = float(robotstate[3,0])
+		origin_yaw = float(robotstate[2,0])
 		gvecs = []
 		for i in range( len(vectors) ) :
 			xl = float(vectors[i][0,0])
