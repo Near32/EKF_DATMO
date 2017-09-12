@@ -7,13 +7,13 @@ import threading
 
 
 class EKF_DATMO :
-	def __init__(self, freq=100, thresh_assoc_dist=10.0) :
+	def __init__(self, freq=100, assoc_dist=1e0) :
 		self.freq = freq
 		assert( self.freq != 0 )
 		self.dt = 1.0/freq
 		self.continuer = True
 		
-		self.thresh_assoc_dist = thresh_assoc_dist
+		self.thresh_assoc_dist = assoc_dist
 		
 		self.robot = EKF_Robot(freq=self.freq)
 		self.mapMO = []
@@ -51,7 +51,7 @@ class EKF_DATMO :
 		
 	def fromLocalRTToGlobal(self, vectors ) :
 		nbr = len(vectors)
-		robotstate = self.robot.getState()
+		robotstate = np.copy(self.robot.getState() )
 		origin = robotstate[0:2,:]
 		origin_yaw = robotstate[3,0]
 		gvecs = []
@@ -69,27 +69,27 @@ class EKF_DATMO :
 		return gvecs
 		
 	def fromGlobalToLocal(self, vectors ) :
-		robotstate = self.robot.getState()
+		robotstate = np.copy( self.robot.getState() )
 		origin = robotstate[0:2,:]
-		origin_yaw = robotstate[3,0]
+		origin_yaw = float(robotstate[3,0])
 		gvecs = []
 		for i in range( len(vectors) ) :
-			xl = vectors[i][0,0]
-			yl = vectors[i][1,0]
-			dxl = (xl-origin[0,0])
-			dyl = (yl-origin[1,0])
-			r = dxl**2 + dyl**2
-			theta = np.arctan2(dyl,dxl) - origin_yaw
+			xl = float(vectors[i][0,0])
+			yl = float(vectors[i][1,0])
+			dxl = (xl-float(origin[0,0]))
+			dyl = (yl-float(origin[1,0]))
+			r = float(dxl**2 + dyl**2)
+			theta = float(np.arctan2(dyl,dxl) - origin_yaw)
 			x = r*np.cos(theta)
 			y = r*np.sin(theta)
-			gvecs.append( [ x, y] )
-			
+			gvecs.append( np.array([ x, y]).reshape((2,1)) )
 		return gvecs
 		
 	def getMOLocal(self) :
 		out = []
 		for el in self.mapMO :
-			out.append( el.getState()[0:2,:] )
+			x = el.getState()
+			out.append( x )
 		return self.fromGlobalToLocal( out )
 		
 	def computeDistMatrix(self, mapMO, obs_xy ) :
@@ -98,10 +98,10 @@ class EKF_DATMO :
 		distm = np.zeros( (nbrMO, nbrObs ) )
 		
 		for i in range(nbrMO) :
-			moxy = mapMO[i].getState()
+			moxy = mapMO[i].getState()[0:2,:]
 			for j in range(nbrObs) :
 				diff = moxy - obs_xy[j]
-				dist = np.sqrt( diff.T*diff )
+				dist = np.sqrt( float( diff[0,0]**2+diff[1,0]**2) )
 				distm[i][j] = dist
 				
 		return distm
@@ -128,15 +128,14 @@ class EKF_DATMO :
 		#compute distance matrix :
 		dist_mat = self.computeDistMatrix( mapMO, obs_global )
 		index_min = np.argmin( dist_mat, axis=0)
-		
-		#differentiate between to_init and to_assoc :
+		#discriminate between to_init and to_assoc :
 		out_init = []
 		out_assoc = []
-		for i in range(index_min.shape[1] ):
-			if dist_mat[ index_min[0,i], i] > thresh_assoc :
+		for i in range(index_min.shape[0] ):
+			if dist_mat[ index_min[i], i] > thresh_assoc :
 				out_init.append( (obs_types[i], obs_global[i]) )
 			else :
-				out_assoc.append( (index_min[0,i], obs_types[i], obs_global[i] ) )
+				out_assoc.append( (index_min[i], obs_types[i], obs_global[i] ) )
 				
 		return { 'to_init':out_init, 'to_assoc':out_assoc }
 		
@@ -168,14 +167,6 @@ class EKF_DATMO :
 				
 				todo = self.dataAssociation( thresh_assoc=self.thresh_assoc_dist, mapMO=self.mapMO, observationsLocal=measurements)
 				
-				#initialization :
-				for el in todo['to_init'] :
-					self.mapMO_types.append( dict() )
-					self.mapMO_types[-1][ el[0] ] = 1
-					#initial state with no velocity...
-					initstate = np.array( [ el[1][0], el[1][1], 0.0, 0.0 ] ).reshape((4,1))
-					self.mapMO.append( EKF_MapMO(freq=self.freq, initx=initstate  ) )
-					
 				#association :
 				for el in todo['to_assoc'] :
 					index = el[0]
@@ -189,7 +180,15 @@ class EKF_DATMO :
 					#correction : mapMO :
 					self.mapMO[index].measurement_callback(measurement=measurement)
 					
-			
+				#initialization :
+				for el in todo['to_init'] :
+					self.mapMO_types.append( dict() )
+					self.mapMO_types[-1][ el[0] ] = 1
+					#initial state with no velocity...
+					initstate = np.array( [ el[1][0], el[1][1], 0.0, 0.0 ] ).reshape((4,1))
+					self.mapMO.append( EKF_MapMO(freq=self.freq, initx=initstate  ) )	
+					print(' OBS : init MO : {}'.format(el[1]) )
+				
 			end = time.time()
 			elt = end-start
 			sleep = self.dt-elt

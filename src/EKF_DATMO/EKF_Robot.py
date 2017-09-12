@@ -25,8 +25,8 @@ class EKF_Robot(EKF_Element) :
 		]) 
 
 		#Process/State noise
-		vel_noise_std = 0.005
-		pos_noise_std = 0.005
+		vel_noise_std = 1e-2
+		pos_noise_std = 1e-2
 		self.Q = np.matrix([
 				[pos_noise_std*pos_noise_std,0,0,0,0,0],
 				[0,pos_noise_std*pos_noise_std,0,0,0,0],
@@ -37,7 +37,7 @@ class EKF_Robot(EKF_Element) :
 		]) 
 
 		#Sensor/Measurement noise
-		measurement_noise_std = 0.5
+		measurement_noise_std = 1e-1
 		self.R = measurement_noise_std * measurement_noise_std * np.identity(3)
 		
 		

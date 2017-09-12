@@ -16,8 +16,8 @@ class EKF_Element :
 		self.H = np.matrix([[1,0,0,0],[0,1,0,0]]) 
 
 		#Process/State noise
-		vel_noise_std = 0.005
-		pos_noise_std = 0.005
+		vel_noise_std = 1e-3
+		pos_noise_std = 1e-3
 		self.Q = np.matrix([
 				[pos_noise_std*pos_noise_std,0,0,0],
 				[0,pos_noise_std*pos_noise_std,0,0],
@@ -26,7 +26,7 @@ class EKF_Element :
 		]) 
 
 		#Sensor/Measurement noise
-		measurement_noise_std = 0.5
+		measurement_noise_std = 1e0
 		self.R = measurement_noise_std * measurement_noise_std * np.identity(2) 
 
 		self.x = np.zeros((4,1)) #Initial state vector [x,y,vx,vy]
@@ -54,7 +54,9 @@ class EKF_Element :
 		return sigma_p
 
 	def calculateKalmanGain(self, sigma_p, H, R):
-		k = np.dot(np.dot(sigma_p, np.transpose(H)), np.linalg.inv(np.dot(H, np.dot(sigma_p, np.transpose(H)))+R))
+		a = np.dot(sigma_p, np.transpose(H))
+		b = np.linalg.inv(np.dot(H, np.dot(sigma_p, np.transpose(H)))+R)
+		k = np.dot( a, b)
 		return k
 
 	def correctState(self, z, x_p, k, H):
@@ -65,7 +67,8 @@ class EKF_Element :
 		:param H: Observation model
 		:return x: Corrected state vector as 4x1 numpy array
 		'''
-		x= x_p + np.dot(k,(z - np.dot(H,x_p)))
+		a = np.dot(k,(z - np.dot(H,x_p)))
+		x= x_p + a
 		return x
 
 	def correctCovariance(self, sigma_p, k, H):
