@@ -6,19 +6,19 @@ class EKF_Element :
 		assert(self.freq != 0)
 		self.dt = 1.0/freq 
 		#State-transition model
-		self.A = np.array([
+		self.A = np.matrix([
 				[1,0,self.dt,0],
 				[0,1,0,self.dt],
 				[0,0,1,0],
 				[0,0,0,1]
 		]) 
 		#Observation model
-		self.H = np.array([[1,0,0,0],[0,1,0,0]]) 
+		self.H = np.matrix([[1,0,0,0],[0,1,0,0]]) 
 
 		#Process/State noise
 		vel_noise_std = 0.005
 		pos_noise_std = 0.005
-		self.Q = np.array([
+		self.Q = np.matrix([
 				[pos_noise_std*pos_noise_std,0,0,0],
 				[0,pos_noise_std*pos_noise_std,0,0],
 				[0,0,vel_noise_std*vel_noise_std,0],
@@ -50,7 +50,7 @@ class EKF_Element :
 		return x_p
 
 	def predictCovariance(self, A, sigma, Q):
-		sigma_p = np.dot(np.dot(A, sigma), np.transpose(A))+Q
+		sigma_p = np.dot( np.dot(A, sigma), np.transpose(A)) + Q
 		return sigma_p
 
 	def calculateKalmanGain(self, sigma_p, H, R):

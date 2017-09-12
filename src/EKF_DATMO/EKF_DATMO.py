@@ -2,12 +2,14 @@ import numpy as np
 from threading import Lock
 from EKF_Robot import EKF_Robot
 from EKF_MapMO import EKF_MapMO
-import rospy
+import time
+import threading
+
 
 class EKF_DATMO :
 	def __init__(self, freq=100, thresh_assoc_dist=10.0) :
 		self.freq = freq
-		assert(self.freq != 0 )
+		assert( self.freq != 0 )
 		self.dt = 1.0/freq
 		self.continuer = True
 		
@@ -20,40 +22,76 @@ class EKF_DATMO :
 		'''
   	Accumulator for observations :
   	'''
-  	#Observation descriptions :
-  	# robot : [dot x dot y dot yaw ]
-  	# map : list of tuple ( type, [ r theta ] ) in local framework...
-  	self.acc_obs_robot_vel = []
-  	self.acc_obs_map_pos = []
-  	
-  	self.rMutex = Lock()
-  		
-  def observationRobotVelocity(self, obs) :
+		#Observation descriptions :
+		# robot : [dot x dot y dot yaw ]
+		# map : list of tuple ( type, [ r theta ] ) in local framework...
+		self.acc_obs_robot_vel = []
+		self.acc_obs_map_pos = []
+
+		self.rMutex = Lock()
+		self.loopThread = threading.Thread( target=EKF_DATMO.loop, args=(self,) )
+		self.loopThread.start()
+  
+ 	def getRobot(self) :
+		return self.robot
+	
+	def getMapMO(self) :
+		return self.mapMO
+  
+  
+	def observationRobotVelocity(self, obs) :
 		self.rMutex.acquire()
 		self.acc_obs_robot_vel.append(obs)
 		self.rMutex.release()
-		
+
 	def observationMapPosition(self, obs) :
 		self.rMutex.acquire()
 		self.acc_obs_map_pos.append(obs)
 		self.rMutex.release()
 		
 	def fromLocalRTToGlobal(self, vectors ) :
+		nbr = len(vectors)
 		robotstate = self.robot.getState()
 		origin = robotstate[0:2,:]
 		origin_yaw = robotstate[3,0]
 		gvecs = []
 		
-		for i in range( len(vectors) ) :
+		for i in range( nbr ) :
 			r = vectors[i][0]
 			theta = vectors[i][1]
 			x = r*np.cos(theta+origin_yaw)
 			y = r*np.sin(theta+origin_yaw)
-			gvecs.append( origin+[ x, y] )
+			gvec = origin
+			gvec[0,0] += x
+			gvec[1,0] += y
+			gvecs.append( gvec )
 			
 		return gvecs
 		
-	
+	def fromGlobalToLocal(self, vectors ) :
+		robotstate = self.robot.getState()
+		origin = robotstate[0:2,:]
+		origin_yaw = robotstate[3,0]
+		gvecs = []
+		for i in range( len(vectors) ) :
+			xl = vectors[i][0,0]
+			yl = vectors[i][1,0]
+			dxl = (xl-origin[0,0])
+			dyl = (yl-origin[1,0])
+			r = dxl**2 + dyl**2
+			theta = np.arctan2(dyl,dxl) - origin_yaw
+			x = r*np.cos(theta)
+			y = r*np.sin(theta)
+			gvecs.append( [ x, y] )
+			
+		return gvecs
+		
+	def getMOLocal(self) :
+		out = []
+		for el in self.mapMO :
+			out.append( el.getState()[0:2,:] )
+		return self.fromGlobalToLocal( out )
+		
 	def computeDistMatrix(self, mapMO, obs_xy ) :
 		nbrMO = len(mapMO)
 		nbrObs = len(obs_xy)
@@ -83,9 +121,9 @@ class EKF_DATMO :
 		
 		if len(mapMO) == 0 :
 			out = []
-			for i in range( len(obs_type) ):
-				out.append( obs_types[i], obs_global[i] )
-			return { 'to_init': out, 'to_associate':[] }
+			for i in range( len(obs_types) ):
+				out.append( (obs_types[i], obs_global[i]) )
+			return { 'to_init': out, 'to_assoc':[] }
 		
 		#compute distance matrix :
 		dist_mat = self.computeDistMatrix( mapMO, obs_global )
@@ -105,9 +143,10 @@ class EKF_DATMO :
 	
 	
 	def loop(self) :
-		rate = rospy.Rate(self.freq)
 		
 		while self.continuer :
+			start = time.time()
+			
 			#predict/update robot :
 			self.robot.state_callback()
 			#measurement : robot :
@@ -120,7 +159,7 @@ class EKF_DATMO :
 				
 			#predict/update mapMO :
 			for i in range( len(self.mapMO) ) :
-				self.mapMO.state_callback()
+				self.mapMO[i].state_callback()
 			#measurement : mapMO :
 			if len(self.acc_obs_map_pos) :
 				self.rMutex.acquire()
@@ -133,7 +172,9 @@ class EKF_DATMO :
 				for el in todo['to_init'] :
 					self.mapMO_types.append( dict() )
 					self.mapMO_types[-1][ el[0] ] = 1
-					self.mapMO.append( EKF_MapMO(freq=self.freq, initx=el[1] ) )
+					#initial state with no velocity...
+					initstate = np.array( [ el[1][0], el[1][1], 0.0, 0.0 ] ).reshape((4,1))
+					self.mapMO.append( EKF_MapMO(freq=self.freq, initx=initstate  ) )
 					
 				#association :
 				for el in todo['to_assoc'] :
@@ -141,7 +182,7 @@ class EKF_DATMO :
 					map_type = el[1]
 					measurement = el[2]
 					#type :
-					if map_type is in self.mapMO_types[index] :
+					if map_type in self.mapMO_types[index] :
 						self.mapMO_types[index][map_type] += 1
 					else :
 						self.mapMO_types[index][map_type] = 1
@@ -149,10 +190,14 @@ class EKF_DATMO :
 					self.mapMO[index].measurement_callback(measurement=measurement)
 					
 			
-			rate.sleep()
-
-
-	def setContinuer(self, continuer=True)
+			end = time.time()
+			elt = end-start
+			sleep = self.dt-elt
+			if sleep > 0 :
+				time.sleep(sleep)
+			#print('TIME LOOP : {} seconds.'.format(time.time()-start) )
+			
+	def setContinuer(self, continuer=True) :
 		self.continuer = continuer
 	
 			
