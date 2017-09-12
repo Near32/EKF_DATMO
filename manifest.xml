@@ -1,0 +1,14 @@
+<package>
+  <description brief="EKF_DATMO">
+
+     EKF_DATMO
+
+  </description>
+  <author>Kevin Denamganai</author>
+  <license>BSD</license>
+  <review status="unreviewed" notes=""/>
+  <url>http://ros.org/wiki/EKF_DATMO</url>
+
+</package>
+
+
