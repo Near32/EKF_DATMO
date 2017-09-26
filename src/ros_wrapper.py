@@ -8,7 +8,7 @@ import time
 import cv2
 
 
-def drawFrameLocal(datmo) :
+def drawFrameLocal(datmo,number=0) :
 	windowSize = 800
 	zoomArea = 100.0
 	scale = windowSize*1.1/(2.0*zoomArea)
@@ -25,9 +25,9 @@ def drawFrameLocal(datmo) :
 	cv2.circle(frame, center=(windowSize/2,windowSize/2), radius=100, color=color, thickness=2)
 	text = '{}'.format(datmo.robot.getState().transpose() )
 	cv2.putText(frame,text=text, org=(0,50), fontFace=cv2.FONT_HERSHEY_SIMPLEX, fontScale=1, color=(0,0,255), thickness=2)	
-	cv2.imshow('mapLocal',frame)
+	cv2.imshow('mapLocal_{}'.format(number),frame)
 	
-def drawFrameGlobal(datmo) :
+def drawFrameGlobal(datmo,number=0) :
 	windowSize = 800
 	zoomArea = 50.0
 	scale = windowSize*1.1/(2.0*zoomArea)
@@ -55,7 +55,7 @@ def drawFrameGlobal(datmo) :
 	text = 'ROBOT'
 	cv2.putText(frame,text=text, org=center, fontFace=cv2.FONT_HERSHEY_SIMPLEX, fontScale=1, color=(0,0,255), thickness=4)	
 	
-	cv2.imshow('mapGlobal',frame)
+	cv2.imshow('mapGlobal_{}'.format(number),frame)
 	
 	
 	
@@ -73,12 +73,12 @@ class EKF_DATMO_ROS :
 		rospy.on_shutdown(self.shutdown)
 
 		#subscribers :
-		self.sub_odom = rospy.Subscriber('robot_model_teleop_{}/cmd_vel'.format(str(self.number)), self.callbackODOM)
-		self.sub_obs = rospy.Subscriber('robot_model_teleop_{}/YOLO'.format(str(self.number)), self.callbackOBS )
+		self.sub_odom = rospy.Subscriber('robot_model_teleop_{}/cmd_vel'.format(self.number), self.callbackODOM)
+		self.sub_obs = rospy.Subscriber('robot_model_teleop_{}/YOLO'.format(self.number), self.callbackOBS )
 
 
 		#publishers :
-		self.publisher = rospy.Publisher('/robot_model_teleop_{}/DATMO'.format(str(self.number)), ModelStates, 10)
+		self.publisher = rospy.Publisher('/robot_model_teleop_{}/DATMO'.format(self.number), ModelStates, 10)
 
 	def callbackODOM(self, odom_twist) :
 		obs = np.array( [ odom_twist.linear.x, odom_twist.linear.y, odom_twist.angular.z]).reshape((3,1))
@@ -104,10 +104,16 @@ class EKF_DATMO_ROS :
 
 	
 	def publish(self) :
+		'''
+		Publish the state of the DATMO problem with :
+		robot states in the global frame
+		self state in the global frame
+		target state in the global frame
+		'''
 		modelstates = ModelStates()
 
 		robot = self.datmo.getRobot()
-		mapMO = self.datmo.getMOLocal()#self.datmo.getMapMO()
+		mapMO = self.datmo.getMapMO()#self.datmo.getMOLocal()
 		mapMOtypes = self.datmo.getMapMOTypes()
 		indexMO = dict()
 
@@ -124,7 +130,7 @@ class EKF_DATMO_ROS :
 				indexMO[maintype] = 0
 			name = maintype+str(indexMO[maintype])
 
-			state = elem#elem.getState()
+			state = elem.getState()#elem
 
 			pose = Pose()
 			twist = Twist()
@@ -136,8 +142,21 @@ class EKF_DATMO_ROS :
 			twist.linear.y = state[3,0]
 
 			modelstates.name.append(name)
-			modelstate.pose.append(pose)
-			modelstate.twist.append(twist)
+			modelstates.pose.append(pose)
+			modelstates.twist.append(twist)
+
+		# THIS ROBOT :
+		name = 'self'
+		state = robot.getState()
+		pose = Pose()
+		twist = Twist()
+		pose.position.x = state[0,0]
+		pose.position.y = state[1,0]
+		twist.linear.x = state[2,0]
+		twist.linear.y = state[3,0]
+		modelstates.name.append(name)
+		modelstates.pose.append(pose)
+		modelstates.twist.append(twist)
 
 		self.publisher.publish(modelstates)
 
@@ -165,34 +184,22 @@ if __name__ == '__main__':
 	datmo_ros = EKF_DATMO_ROS(freq=freq,dist=args.dist,number=args.number)
 	datmo = datmo_ros.datmo
 
-	try:
-		while continuer :
-			drawFrameLocal(datmo)
-			drawFrameGlobal(datmo)
+	rate = rospy.Rate(100)
+	while continuer :
+		try:
+			drawFrameLocal(datmo,args.number)
+			drawFrameGlobal(datmo,args.number)
 		
 			key = cv2.waitKey(30) & 0xFF
 			if key == ord('q') :
 				continuer = False
 			
-			if key == ord('a') :
-				r = np.random.random()*40.0
-				theta = np.random.random()*np.pi*2-np.pi
-				obs = np.array( [ r, theta] )
-				print('OBS : {}'.format(obs) )
-				measurements = [ ('landmark', obs) ]
-				datmo.observationMapPosition( measurements )
-			
-			if key == ord('y') :
-				dottheta = (np.random.random()*np.pi*2-np.pi)/10.0
-				obs = np.array( [ 0.0, 0.0, dottheta] ).reshape((3,1))
-				print('OBS : ROBOT :: {}'.format(obs) )
-				measurements = obs
-				datmo.observationRobotVelocity( measurements )
-			
-			time.sleep(0.1)
-			
-		datmo.setContinuer(False)
-		cv2.destroyAllWindows()
-	except rospy.ROSInterruptException:
-		rospy.loginfo("Exception thrown")
+			datmo_ros.publish()
 
+			rate.sleep()
+
+		except rospy.ROSInterruptException:
+			rospy.loginfo("Exception thrown")
+
+	datmo.setContinuer(False)
+	cv2.destroyAllWindows()
