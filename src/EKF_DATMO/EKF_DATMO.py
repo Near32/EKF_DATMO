@@ -37,6 +37,9 @@ class EKF_DATMO :
 	
 	def getMapMO(self) :
 		return self.mapMO
+
+	def getMapMOTypes(self) :
+		return self.mapMO_types
   
   
 	def observationRobotVelocity(self, obs) :
@@ -114,6 +117,38 @@ class EKF_DATMO :
 			'to_associate': list of tuples (index mapMO, obs_type, obs_globalxy)
 			} 
 		'''
+		obs_types = [ el[0] for el in observationsLocal ]
+		obs_rthetas = [ el[1] for el in observationsLocal ]
+		
+		obs_global = self.fromLocalRTToGlobal(obs_rthetas)
+		
+		if len(mapMO) == 0 :
+			out = []
+			for i in range( len(obs_types) ):
+				out.append( (obs_types[i], obs_global[i]) )
+			return { 'to_init': out, 'to_assoc':[] }
+		
+		#compute distance matrix :
+		dist_mat = self.computeDistMatrix( mapMO, obs_global )
+		index_min = np.argmin( dist_mat, axis=0)
+		#discriminate between to_init and to_assoc :
+		out_init = []
+		out_assoc = []
+		for i in range(index_min.shape[0] ):
+			if dist_mat[ index_min[i], i] > thresh_assoc :
+				out_init.append( (obs_types[i], obs_global[i]) )
+			else :
+				out_assoc.append( (index_min[i], obs_types[i], obs_global[i] ) )
+				
+		return { 'to_init':out_init, 'to_assoc':out_assoc }
+
+
+	def dataFusion( self, thresh_assoc, mapMO) :
+		'''
+		return : updated mapMO with elements that are actually different from each other... 
+		'''
+		#TODO ...
+
 		obs_types = [ el[0] for el in observationsLocal ]
 		obs_rthetas = [ el[1] for el in observationsLocal ]
 		

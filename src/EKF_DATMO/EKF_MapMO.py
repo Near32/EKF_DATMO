@@ -6,8 +6,8 @@ class EKF_MapMO(EKF_Element) :
 		EKF_Element.__init__(self,freq=freq)
 		
 		#Process/State noise
-		vel_noise_std = 1e-6
-		pos_noise_std = 1e-6
+		vel_noise_std = 1e-12
+		pos_noise_std = 1e-12
 		self.Q = np.matrix([
 				[pos_noise_std*pos_noise_std,0,0,0],
 				[0,pos_noise_std*pos_noise_std,0,0],

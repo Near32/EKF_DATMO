@@ -30,15 +30,26 @@ def drawFrameGlobal(datmo) :
 	frame = 125.0*np.ones( (windowSize,windowSize,3))
 	elements = datmo.mapMO
 	color = (255,0,0)
+	colorred = (0,0,255)
 	for i in range(len(elements) ):
 		el = elements[i].getState()
 		sigma = elements[i].getCovariance()
 		radius = int(scale*np.sqrt(float( sigma[0,0])/2.0 + float(sigma[1,1])/2.0 ) )
 		center=( int( el[0,0]*scale+windowSize/2.0), int( el[1,0]*scale+windowSize/2.0 ) )
-		cv2.circle(frame, center=center, radius=radius, color=color, thickness=5, lineType=8, shift=0)
+		cv2.circle(frame, center=center, radius=radius, color=color, thickness=radius, lineType=8, shift=0)
+		cv2.circle(frame, center=center, radius=2, color=colorred, thickness=2, lineType=8, shift=0)
 		text = 'MO{}'.format( i )
-		cv2.putText(frame,text=text, org=center, fontFace=cv2.FONT_HERSHEY_SIMPLEX, fontScale=1, color=(0,0,255), thickness=2)	
-	cv2.circle(frame, center=(windowSize/2,windowSize/2), radius=100, color=color, thickness=2)
+		cv2.putText(frame,text=text, org=center, fontFace=cv2.FONT_HERSHEY_SIMPLEX, fontScale=1, color=(0,0,255), thickness=4)	
+	
+	#cv2.circle(frame, center=(windowSize/2,windowSize/2), radius=100, color=color, thickness=2)
+	
+	#draw robot :
+	color = (0,255,0)
+	robot = datmo.getRobot().getState()
+	center=( int( robot[0,0]*scale+windowSize/2.0), int( robot[1,0]*scale+windowSize/2.0 ) )
+	cv2.circle(frame, center=center, radius=10, color=color, thickness=10, lineType=8, shift=0)
+	text = 'ROBOT'
+	cv2.putText(frame,text=text, org=center, fontFace=cv2.FONT_HERSHEY_SIMPLEX, fontScale=1, color=(0,0,255), thickness=4)	
 	
 	cv2.imshow('mapGlobal',frame)
 	
@@ -58,7 +69,7 @@ def test_ekf() :
 			continuer = False
 			
 		if key == ord('a') :
-			r = np.random.random()*10.0
+			r = np.random.random()*40.0
 			theta = np.random.random()*np.pi*2-np.pi
 			obs = np.array( [ r, theta] )
 			print('OBS : {}'.format(obs) )
