@@ -61,9 +61,7 @@ def drawFrameGlobal(datmo) :
 	
 	
 class EKF_DATMO_ROS :
-	def __init__(self,listen_topic,sub_topic, number=0,freq=100,dist=5.0) :
-		self.listen_topic = listen_topic
-		self.sub_topic = sub_topic
+	def __init__(self,number=0,freq=100,dist=5.0) :
 		self.number = number
 		
 		self.freq = freq
@@ -71,7 +69,7 @@ class EKF_DATMO_ROS :
 		
 		self.datmo = EKF_DATMO(freq=self.freq, assoc_dist=self.assoc_dist)
 		
-		rospy.init_node('EKF_DATMO_ROS_'+number, anonymous=False)
+		rospy.init_node('EKF_DATMO_ROS_'+str(self.number), anonymous=False)
 		rospy.on_shutdown(self.shutdown)
 
 		#subscribers :
@@ -155,16 +153,16 @@ class EKF_DATMO_ROS :
 
 if __name__ == '__main__':
 	freq = 100
-	dist = 5.0
 	continuer = True
 	
 	parser = argparse.ArgumentParser()
-	parser.add_argument("--debug", action='store_true', help="print obstacles and laserScan visible cells.")
-	parser.add_argument("-theta", action='store', dest='theta', type=float, default=-90.0, help="rotation from the odometry to the grid, in degrees, around z.")
+	parser.add_argument("--debug", action='store_true', help="debug mode.")
+	parser.add_argument("-number", action='store', dest='number', type=int, default=0, help="index number of the teleoperated robot.")
+	parser.add_argument("-distAssoc", action='store', dest='dist', type=float, default=5.0, help="distance in centimeter for which we associate an observation and an element already registerd.")
 	
 	args = parser.parse_args()
 	
-	datmo_ros = EKF_DATMO_ROS(freq=freq,dist=dist)
+	datmo_ros = EKF_DATMO_ROS(freq=freq,dist=args.dist,number=args.number)
 	datmo = datmo_ros.datmo
 
 	try:
