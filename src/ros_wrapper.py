@@ -75,12 +75,12 @@ class EKF_DATMO_ROS :
 		rospy.on_shutdown(self.shutdown)
 
 		#subscribers :
-		self.sub_odom = rospy.Subscriber('robot_model_teleop_{}/cmd_vel'.format(self.number), self.callbackODOM)
-		self.sub_obs = rospy.Subscriber('robot_model_teleop_{}/YOLO'.format(self.number), self.callbackOBS )
+		self.sub_odom = rospy.Subscriber('robot_model_teleop_{}/cmd_vel'.format(self.number), Twist, self.callbackODOM)
+		self.sub_obs = rospy.Subscriber('robot_model_teleop_{}/YOLO'.format(self.number), ModelStates, self.callbackOBS )
 
 
 		#publishers :
-		self.publisher = rospy.Publisher('/robot_model_teleop_{}/DATMO'.format(self.number), ModelStates, 10)
+		self.publisher = rospy.Publisher('/robot_model_teleop_{}/DATMO'.format(self.number), ModelStates, queue_size=10)
 
 	def callbackODOM(self, odom_twist) :
 		v = odom_twist.linear.x
@@ -90,7 +90,8 @@ class EKF_DATMO_ROS :
 
 	def callbackOBS(self, modelstates) :
 		measurements = []
-		for name, position in zip( modelstates.name, modelstates.pose.position) :
+		for name, pose in zip( modelstates.name, modelstates.pose) :
+			position = pose.position
 			landmark = None
 			if 'target' in name :
 				landmark = 'target'
@@ -120,8 +121,8 @@ class EKF_DATMO_ROS :
 		mapMO = self.datmo.getMapMO()#self.datmo.getMOLocal()
 		mapMOtypes = self.datmo.getMapMOTypes()
 		indexMO = dict()
-
-		for elem,i in enumerate(mapMO) :
+		
+		for i,elem in enumerate(mapMO) :
 			types = mapMOtypes[i]
 			maintype = None
 			nbr = 0
