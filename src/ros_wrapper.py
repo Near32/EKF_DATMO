@@ -6,6 +6,8 @@ from geometry_msgs.msg import Pose, Point, Quaternion, Twist
 from EKF_DATMO import EKF_DATMO
 import time
 import cv2
+import argparse
+
 
 
 def drawFrameLocal(datmo,number=0) :
@@ -81,7 +83,9 @@ class EKF_DATMO_ROS :
 		self.publisher = rospy.Publisher('/robot_model_teleop_{}/DATMO'.format(self.number), ModelStates, 10)
 
 	def callbackODOM(self, odom_twist) :
-		obs = np.array( [ odom_twist.linear.x, odom_twist.linear.y, odom_twist.angular.z]).reshape((3,1))
+		v = odom_twist.linear.x
+		theta = self.datmo.getRobot().getState()[2,0]
+		obs = np.array( [ v*np.cos(theta), v*np.cos(theta), odom_twist.angular.z]).reshape((3,1))
 		self.datmo.observationRobotVelocity( obs )
 
 	def callbackOBS(self, modelstates) :
