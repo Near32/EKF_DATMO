@@ -41,6 +41,7 @@ def drawFrameGlobal(datmo,number=0) :
 		el = elements[i].getState()
 		sigma = elements[i].getCovariance()
 		radius = int(scale*np.sqrt(float( sigma[0,0])/2.0 + float(sigma[1,1])/2.0 ) )
+		if radius >=250 : radius = 250
 		center=( int( el[0,0]*scale+windowSize/2.0), int( el[1,0]*scale+windowSize/2.0 ) )
 		cv2.circle(frame, center=center, radius=radius, color=color, thickness=radius, lineType=8, shift=0)
 		cv2.circle(frame, center=center, radius=2, color=colorred, thickness=2, lineType=8, shift=0)
