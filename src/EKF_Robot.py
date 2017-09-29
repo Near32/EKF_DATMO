@@ -6,6 +6,7 @@ class EKF_Robot(EKF_Element) :
 		EKF_Element.__init__(self,freq=freq)
 		
 		self.x = np.zeros((6,1))
+		self.x[2,0] = np.pi/2
 		self.sigma = np.identity(6)
 		
 		#State-transition model

@@ -12,7 +12,7 @@ import argparse
 
 def drawFrameLocal(datmo,number=0) :
 	windowSize = 800
-	zoomArea = 100.0
+	zoomArea = 0.02
 	scale = windowSize*1.1/(2.0*zoomArea)
 	frame = 125.0*np.ones( (windowSize,windowSize,3))
 	elements = datmo.getMOLocal()
@@ -31,7 +31,7 @@ def drawFrameLocal(datmo,number=0) :
 	
 def drawFrameGlobal(datmo,number=0) :
 	windowSize = 800
-	zoomArea = 50.0
+	zoomArea = 0.05
 	scale = windowSize*1.1/(2.0*zoomArea)
 	frame = 125.0*np.ones( (windowSize,windowSize,3))
 	elements = datmo.mapMO
@@ -76,7 +76,7 @@ class EKF_DATMO_ROS :
 		rospy.on_shutdown(self.shutdown)
 
 		#subscribers :
-		self.sub_odom = rospy.Subscriber('robot_model_teleop_{}/cmd_vel'.format(self.number), Twist, self.callbackODOM)
+		self.sub_odom = rospy.Subscriber('robot_model_teleop_{}/cmd_vel_odometry'.format(self.number), Twist, self.callbackODOM)
 		self.sub_obs = rospy.Subscriber('robot_model_teleop_{}/YOLO'.format(self.number), ModelStates, self.callbackOBS )
 
 
